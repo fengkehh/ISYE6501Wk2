@@ -16,3 +16,4 @@ for (i in 1:10) {
 }
 
 plot(withinss)
+axis(side = 1, at = seq_along(withinss))

@@ -3,17 +3,22 @@ title: "ISYE6501 HW2"
 author: "Keh-Harng Feng"
 date: "May 24, 2017"
 output: 
-  bookdown:pdf_book:
+  bookdown::html_document2:
     fig_caption: TRUE
     toc: FALSE
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, tidy = TRUE)
+options(digits = 4)
 
+library('outliers')
+```
 # Question 1
 Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.
 
 **Answer:**
 
-One of the biggest ongoing news right now is the investigation of relationship between U.S. President Donald Trump and Russia. The investigators can construct a model for the individuals involved in order to study how close they are connected to each other. Clearly there is no "correct answer" prior to the conclusion of the investigation so supervised learning using classification models is inappropriate. A clustering model however can be used to represent a "meta-distance" between each individual. Here is a list of five predictors that I think should be important:
+One of the biggest ongoing news right now is the investigation of relationship between U.S. President Donald Trump and Russia. The investigators can construct a model for the individuals involved in order to study how close they are connected to each other. Clearly there is no "correct answer" prior to the conclusion of the investigation so supervised learning using classification models is inappropriate. A clustering model however can be used to represent a "meta-distance" between each individual and paint an overall picture of factions and cliques if required information is available. Here is a list of five predictors that I think should be important:
 
 `Familial Tie`
 
@@ -23,9 +28,9 @@ One of the biggest ongoing news right now is the investigation of relationship b
 
 `Frequency and Signifcance of Communication`
 
-`Other Forms of Mutual Benefits (ie: evidence of blackmailing)`
+`Other Forms of Mutual Benefits (ie: potential of blackmailing)`
 
-Obviously if one is to actually construct such a clustering model, the numer of predictors most likely won't be limited to just these five. In addition, to quantify and weigh each predictor is a whole new ball game and will most likely involve subjective, qualitative judgement of the investigator that is difficult to scientifically justify.
+Obviously if one is to actually construct such a clustering model, the numer of predictors most likely won't be limited to just these five. In addition, to properly define, quantify and weigh each predictor is a whole new ball game and will most likely involve subjective, qualitative judgement by the investigator.
 
 # Question 2
 The iris data set contains 150 data points, each with four predictor variables and one categorical
@@ -37,7 +42,73 @@ the library is loaded. It is also available at the UCI Machine Learning Reposito
 
 Since this is supposed to be an exercise in *unsupervised learning* using kmeans clustering, the response (column 5) will not be used or even looked at until the final step when the model performance is evaluated.
 
-Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed. The total within cluster sums of square distances are plotted as a function of the number of clusters. This is shown in Figure {ref}.
+## Model Selection & Construction
+Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed from 5 random sets of starting points. The total within-cluster sums of square distances are plotted as a function of the number of clusters. This is shown in Figure \@ref(fig:q2).
 
+```{r q2, fig.cap = 'Within-cluster Sum of Squares vs Number of Clusters'}
+iris_data <- read.table('iris.txt', header = TRUE)
 
+iris_noresp <- iris_data[,-5]
+varnames = rep('', 10)
+
+for (k in 1:10) {
+  kcl <- kmeans(iris_noresp, centers = k, nstart = 5)
+  varnames[k] <- paste('cl', k, sep = '')
+  assign(varnames[k], value = kcl)
+}
+
+withinss <- rep(0, 10)
+
+for (i in 1:10) {
+  withinss[i] = get(varnames[i])$tot.withinss
+}
+
+plot(withinss, xlab = 'Number of Clusters', ylab = 'Within-cluster Sum of Squares')
+axis(side = 1, at = seq_along(withinss))
+```
+
+It is clear that the improvement to within-cluster sum of squares decreases significantly after the number of clusters reaches 3. Thus **k = 3 is chosen to be the optimal number of clusters**.
+
+## Performance Evaluation
+To evaluate the performance of the selected model, first the optimal number of clusters (3) is compared to the number of different species from the provided classification label:
+```{r, echo = TRUE}
+length(unique(iris_data[,5]))
+```
+
+Lo and behold, they match up! This is a good start: the elbow method has correctly guessed the number of species recorded in the data set.
+
+In-sample model accuracy is computed with the following code:
+```{r, echo = TRUE}
+acc <- sum(as.numeric(iris_data[,5]) == cl3$cluster)/nrow(iris_data)
+```
+
+The clustering model is able to achieve an in-sample accuracy of `r acc`.
+
+# Question 3
+Using crime data from http://www.statsci.org/data/general/uscrime.txt (description at http://www.statsci.org/data/general/uscrime.html), test to see whether there is an outlier in the last column (number of crimes per 100,000 people). Is the lowest-crime city an outlier? Is the highest-crime city an outlier? Use the grubbs.test function in the outliers package in R.
+
+# Appendix {#Appdix}
+
+## Code for Question 2
+```{r Q2, eval = FALSE, echo = TRUE}
+iris_data <- read.table('iris.txt', header = TRUE)
+
+iris_noresp <- iris_data[,-5]
+varnames = rep('', 10)
+
+for (k in 1:10) {
+  kcl <- kmeans(iris_noresp, centers = k, nstart = 5)
+  varnames[k] <- paste('cl', k, sep = '')
+  assign(varnames[k], value = kcl)
+}
+
+withinss <- rep(0, 10)
+
+for (i in 1:10) {
+  withinss[i] = get(varnames[i])$tot.withinss
+}
+
+plot(withinss, xlab = 'Number of Clusters', ylab = 'Within-cluster Sum of Squares')
+axis(side = 1, at = seq_along(withinss))
+```
 
