@@ -1,0 +1,43 @@
+---
+title: "ISYE6501 HW2"
+author: "Keh-Harng Feng"
+date: "May 24, 2017"
+output: 
+  bookdown:pdf_book:
+    fig_caption: TRUE
+    toc: FALSE
+---
+
+# Question 1
+Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.
+
+**Answer:**
+
+One of the biggest ongoing news right now is the investigation of relationship between U.S. President Donald Trump and Russia. The investigators can construct a model for the individuals involved in order to study how close they are connected to each other. Clearly there is no "correct answer" prior to the conclusion of the investigation so supervised learning using classification models is inappropriate. A clustering model however can be used to represent a "meta-distance" between each individual. Here is a list of five predictors that I think should be important:
+
+`Familial Tie`
+
+`Financial Tie`
+
+`Personal Tie`
+
+`Frequency and Signifcance of Communication`
+
+`Other Forms of Mutual Benefits (ie: evidence of blackmailing)`
+
+Obviously if one is to actually construct such a clustering model, the numer of predictors most likely won't be limited to just these five. In addition, to quantify and weigh each predictor is a whole new ball game and will most likely involve subjective, qualitative judgement of the investigator that is difficult to scientifically justify.
+
+# Question 2
+The iris data set contains 150 data points, each with four predictor variables and one categorical
+response. The predictors are the width and length of the sepal and petal of flowers and the response is
+the type of flower. The data is available from the R library datasets and can be accessed with iris once
+the library is loaded. It is also available at the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Iris ). The response values are only given to see how well a specific method performed and should not be used to build the model. Use the R function kmeans to cluster the points as well as possible. Report the best combination of predictors, your suggested value of k, and how well your best clustering predicts flower type.
+
+**Answer:**
+
+Since this is supposed to be an exercise in *unsupervised learning* using kmeans clustering, the response (column 5) will not be used or even looked at until the final step when the model performance is evaluated.
+
+Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed. The total within cluster sums of square distances are plotted as a function of the number of clusters. This is shown in Figure {ref}.
+
+
+
