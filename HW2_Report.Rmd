@@ -3,7 +3,7 @@ title: "ISYE6501 HW2"
 author: "Keh-Harng Feng"
 date: "May 24, 2017"
 output: 
-  bookdown::html_document2:
+  bookdown::pdf_book:
     fig_caption: TRUE
     toc: FALSE
 ---
@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, tidy = TRUE)
 options(digits = 4)
 
 library('outliers')
+library('reshape2')
 ```
 # Question 1
 Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.
@@ -46,6 +47,8 @@ Since this is supposed to be an exercise in *unsupervised learning* using kmeans
 Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed from 5 random sets of starting points. The total within-cluster sums of square distances are plotted as a function of the number of clusters. This is shown in Figure \@ref(fig:q2).
 
 ```{r q2, fig.cap = 'Within-cluster Sum of Squares vs Number of Clusters'}
+set.seed(123)
+
 iris_data <- read.table('iris.txt', header = TRUE)
 
 iris_noresp <- iris_data[,-5]
@@ -86,6 +89,107 @@ The clustering model is able to achieve an in-sample accuracy of `r acc`.
 
 # Question 3
 Using crime data from http://www.statsci.org/data/general/uscrime.txt (description at http://www.statsci.org/data/general/uscrime.html), test to see whether there is an outlier in the last column (number of crimes per 100,000 people). Is the lowest-crime city an outlier? Is the highest-crime city an outlier? Use the grubbs.test function in the outliers package in R.
+
+**Answer:**
+
+Grubbs test is essentially a hypothesis test using t-distribution to check if the maximum/minimum of a set of data points is far enough for the Grubbs statistics, G, to go beyond the critical value associated with a chosen significance level, $alpha$. 
+
+The G statistic is basically just the dimensionless distance between the mean and the possible outlier represented as number of standard deviations away (using a maximum outlier as example):
+
+$$
+G = \frac{X_{max} - \bar{X}}{s}
+$$
+
+The critical region (using a maximum outlier as an example) can be computed as follows:
+
+$$
+G > \frac{N-1}{\sqrt{N}}\sqrt{\frac{t_{\alpha/N}^2}{N - 2 + t_{\alpha/N}^2}}
+$$
+where
+
+N = sample size
+
+$t_{\alpha/N}$ = t statistics from student's t distribution with probability = $1 - \alpha/N$ and degree of freedom = N - 2
+
+The information presented here is referenced from [this page](http://www.itl.nist.gov/div898/handbook/eda/section3/eda35h1.htm). The critical region for alpha set at 0.05 in a one-sided test is computed using the code below: 
+
+```{r grubbs-crit, echo = TRUE}
+crime_data <- read.table('uscrime.txt', header = TRUE)
+
+N = nrow(crime_data)
+alpha = 0.05
+t_crit = qt(1 - alpha/N, df = N - 2)
+
+G_crit <- (N - 1)/sqrt(N)*sqrt(t_crit^2/(N - 2 + t_crit^2))
+```
+
+**The critical G value is found to be `r G_crit`**. 
+
+The grubbs.test() function from the `outliers` package is used to compute the Grubbs statistics, G. The result is shown below:
+
+**For the minimum crime rate**:
+```{r, echo = TRUE}
+min_test <- grubbs.test(crime_data$Crime, opposite = TRUE)
+min_test
+```
+
+**For the maximum crime rate**:
+```{r, echo = TRUE}
+max_test <- grubbs.test(crime_data$Crime)
+max_test
+```
+
+Notice that both G values are less than the critical G value, `r G_crit`, hence **neither crime rates are outliers in this data set**. Also note that it's actually possible to draw the same conclusion using the p-values computed by grubbs.test. Both tests resulted in p-value > alpha = `r alpha`, thus neither points are outliers.
+
+# Question 4
+Describe a situation or problem from your job, everyday life, current events, etc., for which a Change Detection model would be appropriate. Applying the CUSUM technique, how would you choose the critical value and the threshold?
+
+**Answer:**
+
+I read about the [Sewol Ferry Disaster](https://en.wikipedia.org/wiki/Sinking_of_MV_Sewol) recently where 304 people died after the ship sank in South Korea. The helmsman performed a tigh right turn at high speed. The The incline from the turn went beyond the point of no return and caused the ferry to capsize. 
+
+Clearly ships under normal operations will still undergo momentary inclines due to rolling caused by waves and turns. The onboard computer should not raise false alarms under these situations. CUSUM is therefore a good choice for the statistics backend for the detection of abnormal incline.
+
+*I am not a hull design engineer so the following is purely my own personal guess.*
+
+CUSUM is computed as follows:
+$$
+S_t = max\{0, S_{t-1} + (x_t - \mu - C)\}  
+$$
+and the system triggers warning when $S_t > T$.
+
+In this case,
+
+$x_t$ = current measured angle of incline
+
+$\mu$ = running average of measured angles of incline
+
+$C$ = critical value 
+
+$T$ = threshold value
+
+Care should be taken in regards to the running average, $\mu$. Since a ship on a calm sea sailing straight should have an equilibrium incline at 0, it may be more reasonable to set $\mu$ to 0. The design engineer can then determine a maximum incline angle that can be encountered during normal operations of the ship and set the critical value C to that. This ensures only persistent incline above maximum normal operation values will be picked up by CUSUM. 
+
+The threshold value, T, should be set based on the sampling rate of the sensor and difference between the point of no return and critical value. The goal is to ensure that there will be enough time for countermeasures to be taken once CUSUM triggers a warning. For example, if the sensor polls at 1 Hz, the point of no return is 20 degrees and C is 10 degrees, a T value set at 5 means the alarm will be raised after 5 seconds if the ship keeps listing at 11 degrees. If the ships list to more than 15 degrees even just momentarily the alarm will be immediately triggered.
+
+# Question 5
+
+## Question 5.1
+1. Using July through October daily-high-temperature data for Atlanta for 1996 through 2015, use
+a CUSUM approach to identify when unofficial summer ends (i.e., when the weather starts
+cooling off) each year. That involves finding a good critical value and threshold to use across all
+years. You can get the data that you need online, for example at
+http://www.iweathernet.com/atlanta-weather-records or
+https://www.wunderground.com/history/airport/KFTY/2015/7/1/CustomHistory.html . You can
+use R if you’d like, but it’s straightforward enough that an Excel spreadsheet can easily do the
+job too.
+
+**Answer:**
+
+
+2. Use a CUSUM approach to make a judgment of whether Atlanta’s summer climate has gotten
+warmer in that time (and if so, when).
+
 
 # Appendix {#Appdix}
 
