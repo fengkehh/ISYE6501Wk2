@@ -3,7 +3,7 @@ title: "ISYE6501 HW2"
 author: "Keh-Harng Feng"
 date: "May 24, 2017"
 output: 
-  bookdown::pdf_book:
+  bookdown::html_document2:
     fig_caption: TRUE
     toc: FALSE
 ---
@@ -13,9 +13,10 @@ options(digits = 4)
 
 library('outliers')
 library('reshape2')
+library('lubridate')
 ```
 # Question 1
-Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.
+**Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.**
 
 **Answer:**
 
@@ -34,10 +35,7 @@ One of the biggest ongoing news right now is the investigation of relationship b
 Obviously if one is to actually construct such a clustering model, the numer of predictors most likely won't be limited to just these five. In addition, to properly define, quantify and weigh each predictor is a whole new ball game and will most likely involve subjective, qualitative judgement by the investigator.
 
 # Question 2
-The iris data set contains 150 data points, each with four predictor variables and one categorical
-response. The predictors are the width and length of the sepal and petal of flowers and the response is
-the type of flower. The data is available from the R library datasets and can be accessed with iris once
-the library is loaded. It is also available at the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Iris ). The response values are only given to see how well a specific method performed and should not be used to build the model. Use the R function kmeans to cluster the points as well as possible. Report the best combination of predictors, your suggested value of k, and how well your best clustering predicts flower type.
+**The iris data set contains 150 data points, each with four predictor variables and one categorical response. The predictors are the width and length of the sepal and petal of flowers and the response is the type of flower. The data is available from the R library datasets and can be accessed with iris once the library is loaded. It is also available at the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Iris ). The response values are only given to see how well a specific method performed and should not be used to build the model. Use the R function kmeans to cluster the points as well as possible. Report the best combination of predictors, your suggested value of k, and how well your best clustering predicts flower type.**
 
 **Answer:**
 
@@ -88,7 +86,7 @@ acc <- sum(as.numeric(iris_data[,5]) == cl3$cluster)/nrow(iris_data)
 The clustering model is able to achieve an in-sample accuracy of `r acc`.
 
 # Question 3
-Using crime data from http://www.statsci.org/data/general/uscrime.txt (description at http://www.statsci.org/data/general/uscrime.html), test to see whether there is an outlier in the last column (number of crimes per 100,000 people). Is the lowest-crime city an outlier? Is the highest-crime city an outlier? Use the grubbs.test function in the outliers package in R.
+**Using crime data from http://www.statsci.org/data/general/uscrime.txt (description at http://www.statsci.org/data/general/uscrime.html), test to see whether there is an outlier in the last column (number of crimes per 100,000 people). Is the lowest-crime city an outlier? Is the highest-crime city an outlier? Use the grubbs.test function in the outliers package in R.**
 
 **Answer:**
 
@@ -142,21 +140,23 @@ max_test
 Notice that both G values are less than the critical G value, `r G_crit`, hence **neither crime rates are outliers in this data set**. Also note that it's actually possible to draw the same conclusion using the p-values computed by grubbs.test. Both tests resulted in p-value > alpha = `r alpha`, thus neither points are outliers.
 
 # Question 4
-Describe a situation or problem from your job, everyday life, current events, etc., for which a Change Detection model would be appropriate. Applying the CUSUM technique, how would you choose the critical value and the threshold?
+**Describe a situation or problem from your job, everyday life, current events, etc., for which a Change Detection model would be appropriate. Applying the CUSUM technique, how would you choose the critical value and the threshold?**
 
 **Answer:**
 
-I read about the [Sewol Ferry Disaster](https://en.wikipedia.org/wiki/Sinking_of_MV_Sewol) recently where 304 people died after the ship sank in South Korea. The helmsman performed a tigh right turn at high speed. The The incline from the turn went beyond the point of no return and caused the ferry to capsize. 
+I read about the [Sewol Ferry Disaster](https://en.wikipedia.org/wiki/Sinking_of_MV_Sewol) recently where 304 people died after the ship sank in South Korea. The helmsman performed a tigh right turn at high speed. The incline from the turn went beyond the point of no return and caused the ferry to capsize. 
 
-Clearly ships under normal operations will still undergo momentary inclines due to rolling caused by waves and turns. The onboard computer should not raise false alarms under these situations. CUSUM is therefore a good choice for the statistics backend for the detection of abnormal incline.
+Clearly ships under normal operations will still undergo momentary inclines due to rolling caused by waves and maneuvers. The onboard computer should not raise false alarms under these situations. CUSUM is therefore a good choice for the statistics backend for the detection of abnormal incline.
 
 *I am not a hull design engineer so the following is purely my own personal guess.*
 
 CUSUM is computed as follows:
-$$
-S_t = max\{0, S_{t-1} + (x_t - \mu - C)\}  
-$$
-and the system triggers warning when $S_t > T$.
+\begin{equation}
+S_t = max\{0, S_{t-1} + (x_t - \mu - C)\}
+(\#eq:cusuminc)
+\end{equation}
+
+and the system triggers warning when $S_t \gt T$.
 
 In this case,
 
@@ -175,20 +175,53 @@ The threshold value, T, should be set based on the sampling rate of the sensor a
 # Question 5
 
 ## Question 5.1
-1. Using July through October daily-high-temperature data for Atlanta for 1996 through 2015, use
+**1. Using July through October daily-high-temperature data for Atlanta for 1996 through 2015, use
 a CUSUM approach to identify when unofficial summer ends (i.e., when the weather starts
 cooling off) each year. That involves finding a good critical value and threshold to use across all
 years. You can get the data that you need online, for example at
 http://www.iweathernet.com/atlanta-weather-records or
 https://www.wunderground.com/history/airport/KFTY/2015/7/1/CustomHistory.html . You can
 use R if you’d like, but it’s straightforward enough that an Excel spreadsheet can easily do the
-job too.
+job too.**
 
 **Answer:**
+```{r, results = 'hide'}
+# Q5.1
+temps <- read.table('temps.txt', header = TRUE)
+
+datetime <- function(day, year) {
+    strtok <- strsplit(as.character(day), '-')
+    
+    date_num <- strtok[[1]][1]
+    mon <- strtok[[1]][2]
+    mon_num <- match(mon, month.abb)
+    year_num <- as.numeric(substr(year, 2, 5))
+    
+    date <- as_date(paste(date_num, mon_num, year_num), '%d %m %Y')
+
+    return(date)
+}
+
+temps_long <- melt(temps)
+
+datums <- mapply(FUN = datetime, temps_long$DAY, temps_long$variable)
+
+temps_long <- data.frame(datum = as_date(datums), T = temps_long$value)
+```
+The temperature data is reshaped into a long format (one measurement per row) with all the dates and year aggregated and converted into date objects. The code to do this can be found in the [Appendix](#TODO).
+
+Figure \@ref() shows the temperature vs date of each year as scatter plots. Using the **MkI Eyeballs** it seems that temperature generally starts to drop around early to mid August. 
+
+Since we are trying to detect a decrease, certain parts of \@ref(eq:cusuminc) has to be flipped, resulting in:
 
 
-2. Use a CUSUM approach to make a judgment of whether Atlanta’s summer climate has gotten
-warmer in that time (and if so, when).
+\begin{equation}
+S_t = max\{0, S_{t-1} + (\mu - x_t  + C)\}
+(\#eq:cusumdec)
+\end{equation}
+
+**2. Use a CUSUM approach to make a judgment of whether Atlanta’s summer climate has gotten
+warmer in that time (and if so, when).**
 
 
 # Appendix {#Appdix}
