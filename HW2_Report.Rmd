@@ -18,7 +18,7 @@ library('knitr')
 ```
 
 # Preface
-This is a reproducible report with most of the codes doing the heavy lifting hidden in the background. If you wish to check the various scripts and code snippets used for the computations, you can download the source code for the report by [clicking here](https://github.com/fengkehh/ISYE6501Wk2/blob/master/HW2_Report.Rmd). However, as a general rule of thumb you should NOT run any downloaded R scripts from an untrusted source on your computer without understanding the source code first.
+This is a reproducible report with most of the codes doing the heavy lifting hidden in the background. **All codes are available for audit.** If you wish to check the various scripts and code snippets used for the computations, you can download the source code of the report by [clicking here](https://github.com/fengkehh/ISYE6501Wk2/blob/master/HW2_Report.Rmd). However, as a general rule of thumb you should NOT run any downloaded R scripts from an untrusted source on your computer without understanding the source code first.
 
 # Question 1
 **Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.**
@@ -47,7 +47,7 @@ Obviously if one is to actually construct such a clustering model, the number of
 Since this is supposed to be an exercise in *unsupervised learning* using kmeans clustering, the response (column 5) will not be used or even looked at until the final step when the model performance is evaluated.
 
 ## Model Selection & Construction
-Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed from 5 random sets of starting points. The average total within-cluster sums of squares are plotted as a function of the number of clusters. This is shown in Figure \@ref(fig:q2).
+Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed from 20 random sets of starting points. The total within-cluster sums of squares are plotted as a function of the number of clusters. This is shown in Figure \@ref(fig:q2).
 
 ```{r q2, fig.cap = 'Within-cluster Sum of Squares vs Number of Clusters'}
 set.seed(123)
@@ -58,7 +58,7 @@ iris_noresp <- iris_data[,-5]
 varnames = rep('', 10)
 
 for (k in 1:10) {
-  kcl <- kmeans(iris_noresp, centers = k, nstart = 5)
+  kcl <- kmeans(iris_noresp, centers = k, nstart = 20)
   varnames[k] <- paste('cl', k, sep = '')
   assign(varnames[k], value = kcl)
 }
@@ -85,16 +85,38 @@ length(unique(iris_data[,5]))
 
 Lo and behold, they match up! This is a good start: the elbow method has correctly guessed the number of species recorded in the data set.
 
-In-sample model accuracy is computed with the following code:
-```{r, echo = TRUE}
-acc <- sum(as.numeric(iris_data[,5]) == cl3$cluster)/nrow(iris_data)
+It should be noted that since kmeans uses random starting points for its clusters, the numerical order of cluster centers can change with respect to the labeled response levels. Cluster centers must therefore be matched to the species it contains most members in first before in-sample accuracy can be properly computed. The confusion matrix of the 3-cluster model is shown below.
+```{r}
+table(iris_data$Species, cl3$cluster)
+
+kmeans_acc <- function(cluster) {
+
+    labels <- rep('', 3)
+    
+    for (level in 1:3) {
+    
+        max_ind <- which.max(table(iris_data[,5], cluster)[,level])
+    
+        labels[level] <- names(max_ind)
+        
+    }
+    
+    model_labels <- factor(cluster, levels = c(1,2,3), labels = labels)
+    
+    acc <- sum(model_labels == iris_data[,5])/nrow(iris_data)
+    
+    return(acc)
+
+}
+
+acc <- kmeans_acc(cl3$cluster)
 ```
 
 The 3-clustering model is able to achieve an in-sample accuracy of `r acc`.
 
 **Predictor Combinations:**
 
-Here is a bit of bonus evaluations by selecting different predictor combinations and checking model performance. Notice that since the performance is evaluated using the labeled response this cannot be used as part of the model selection process (else it will be supervised learning). It is included here for completeness.
+Here is a bit of bonus evaluations by selecting different predictor combinations and checking model performance. Notice that since the performance is evaluated using the labeled response this cannot be used as part of the model selection process (else it will become supervised learning). It is included here for completeness.
 ```{r}
 set.seed(123)
 
@@ -105,8 +127,8 @@ var_combo <- permutations(2, 4, v = c(TRUE, FALSE), repeats.allowed = TRUE)[2:16
 kmeans_accvals <- rep(0, 15)
 
 for (i in 1:15) {
-    model <- kmeans(iris_noresp[,var_combo[i,]], centers = 3, nstart = 5)
-    kmeans_accvals[i] <- sum(as.numeric(iris_data[,5]) == model$cluster)/nrow(iris_data)
+    model <- kmeans(iris_noresp[,var_combo[i,]], centers = 3, nstart = 20)
+    kmeans_accvals[i] <- kmeans_acc(model$cluster)
 }
 
 kmeans_max_ind <- which.max(kmeans_accvals)
@@ -121,7 +143,7 @@ kable(data.frame(Accuracy = kmeans_accvals, Selected = included_vars))
 
 ```
 
-Judging from the accuracy table, a 3-cluster model for the iris data set performs best with predictors `r included_vars[kmeans_max_ind]`, which gives an in-sample accuracy of `r kmeans_accvals[kmeans_max_ind]`
+Judging from the accuracy table, a 3-cluster model for the iris data set performs best with predictor(s) `r included_vars[kmeans_max_ind]`, which gives an in-sample accuracy of `r kmeans_accvals[kmeans_max_ind]`
 
 # Question 3
 **Using crime data from http://www.statsci.org/data/general/uscrime.txt (description at http://www.statsci.org/data/general/uscrime.html), test to see whether there is an outlier in the last column (number of crimes per 100,000 people). Is the lowest-crime city an outlier? Is the highest-crime city an outlier? Use the grubbs.test function in the outliers package in R.**
