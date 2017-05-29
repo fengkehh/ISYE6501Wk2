@@ -18,7 +18,7 @@ library('knitr')
 ```
 
 # Preface
-This is a reproducible report with most of the codes doing the heavy lifting hidden in the background. If you wish to check the various scripts and code snippets used for the computations, you can download the source code for the report by [clicking here](). However, as a general rule of thumb you should NOT run any downloaded R scripts from an untrusted source on your computer without understanding the source code first.
+This is a reproducible report with most of the codes doing the heavy lifting hidden in the background. If you wish to check the various scripts and code snippets used for the computations, you can download the source code for the report by [clicking here](https://github.com/fengkehh/ISYE6501Wk2/blob/master/HW2_Report.Rmd). However, as a general rule of thumb you should NOT run any downloaded R scripts from an untrusted source on your computer without understanding the source code first.
 
 # Question 1
 **Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.**
