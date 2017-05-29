@@ -462,7 +462,7 @@ S_t = max\{0, S_{t-1} + (\mu - x_t  + C)\}
 (\#eq:cusumdec)
 \end{equation}
 
-A design choice is made here to follow the strategy of the cusum function in [MATLAB](https://www.mathworks.com/help/signal/ref/cusum.html). The mean, $\mu$, is computed using the first 25 points of the data. C and T are specified as scalar multiples of the sample standard deviation (again computed using the first 25 points) with separate scalar factors. This is done so that a set with lots of noise will have higher tolerance and threshold A 2-nested grid search with 100 grid points is carried out to find the optimal C and T factors using the sum of square distances to the manually chosen points as the performance metric. 
+A design choice is made here to follow the strategy of the cusum function in [MATLAB](https://www.mathworks.com/help/signal/ref/cusum.html). The mean, $\mu$, is computed using the first 25 points of the data. C and T are specified as scalar multiples of the sample standard deviation (again computed using the first 25 points) with separate scalar factors. This is done so that a set with lots of noise will have higher tolerance and threshold. A 2-nested grid search with 100 grid points is carried out to find the optimal C and T factors using the sum of square distances to the manually chosen points as the performance metric. 
 
 The best performer has a C factor of `r pred$C_val` and T factor of `r pred$T_val`. This seems to suggest that a small filter (in fact, 0) and a relatively high threshold match the manually chosen points better. It should be noted that the C and T factors listed here are scaling factors for the sample standard deviation computed from the first 25 points. While the actual value of C will always be 0 the actual values of T will vary.
 
@@ -549,14 +549,14 @@ points(yrs[aa_ind], line[[2]][aa_ind], pch = 'X')
 abline(h = mean(annual_avg[1:5]), col = 'red')
 abline(h = mean(annual_avg[1:5]) + C, col = 'red', lty = 3)
 
-title(main = 'Average Summer Temperature in Atlanta')
+title(main = 'Atlanta Average Summer Temperature')
 
 legend('topleft', pch = c('o', 'X'), c('Measured Values', 'CUSUM Detection'))
 
 aa <- recordPlot()
 ```
 
-Column means of the temperature data is computed and used to study the annual summer temperature trend. A C facor of 0.5 and T factor of 1 is chosen as the upper filter/control limit and threshold value for an increasing CUSUM detection. The first 5 years are used as baseline points to compute the mean and standard deviation. For this particular data set, the upper filter limit is `r C` degrees F and the threshold is `r T` degrees F. The results are shown in Figure \@ref(fig:q52).
+Column means of the temperature data is computed and used to study the annual summer temperature trend. A C facor of 0.5 and T factor of 1 are chosen as the upper filter/control limit and threshold value for CUSUM detection for an increase respectively. The first 5 years are used as the baseline points to compute the mean and standard deviation. For this particular data set, the upper filter limit is `r C` degrees F and the threshold is `r T` degrees F. The results are shown in Figure \@ref(fig:q52).
 
 ```{r q52, fig.cap = 'Average Summer Temperature with Lowess Smoothed Trend. Red solid line is the mu value and red dotted line is the upper filter limit.'}
 
