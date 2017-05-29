@@ -3,18 +3,23 @@ title: "ISYE6501 HW2"
 author: "Keh-Harng Feng"
 date: "May 24, 2017"
 output: 
-  bookdown::html_document2:
+  bookdown::pdf_book:
     fig_caption: TRUE
     toc: FALSE
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, tidy = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, tidy = TRUE, cache = TRUE)
 options(digits = 4)
 
 library('outliers')
-library('reshape2')
 library('lubridate')
+library('gtools')
+library('knitr')
 ```
+
+# Preface
+This is a reproducible report with most of the codes doing the heavy lifting hidden in the background. If you wish to check the various scripts and code snippets used for the computations, you can download the source code for the report by [clicking here](). However, as a general rule of thumb you should NOT run any downloaded R scripts from an untrusted source on your computer without understanding the source code first.
+
 # Question 1
 **Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.**
 
@@ -32,7 +37,7 @@ One of the biggest ongoing news right now is the investigation of relationship b
 
 `Other Forms of Mutual Benefits (ie: potential of blackmailing)`
 
-Obviously if one is to actually construct such a clustering model, the numer of predictors most likely won't be limited to just these five. In addition, to properly define, quantify and weigh each predictor is a whole new ball game and will most likely involve subjective, qualitative judgement by the investigator.
+Obviously if one is to actually construct such a clustering model, the number of predictors shouldn't be limited to just these five. In addition, to properly define, quantify and weigh each predictor is a whole new ball game and will most likely involve subjective, qualitative judgement by the investigator.
 
 # Question 2
 **The iris data set contains 150 data points, each with four predictor variables and one categorical response. The predictors are the width and length of the sepal and petal of flowers and the response is the type of flower. The data is available from the R library datasets and can be accessed with iris once the library is loaded. It is also available at the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Iris ). The response values are only given to see how well a specific method performed and should not be used to build the model. Use the R function kmeans to cluster the points as well as possible. Report the best combination of predictors, your suggested value of k, and how well your best clustering predicts flower type.**
@@ -42,7 +47,7 @@ Obviously if one is to actually construct such a clustering model, the numer of 
 Since this is supposed to be an exercise in *unsupervised learning* using kmeans clustering, the response (column 5) will not be used or even looked at until the final step when the model performance is evaluated.
 
 ## Model Selection & Construction
-Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed from 5 random sets of starting points. The total within-cluster sums of square distances are plotted as a function of the number of clusters. This is shown in Figure \@ref(fig:q2).
+Selection of k is done with the elbow method. A number of clustering models ranging from 1 to 10 clusters are constructed from 5 random sets of starting points. The average total within-cluster sums of squares are plotted as a function of the number of clusters. This is shown in Figure \@ref(fig:q2).
 
 ```{r q2, fig.cap = 'Within-cluster Sum of Squares vs Number of Clusters'}
 set.seed(123)
@@ -71,7 +76,9 @@ axis(side = 1, at = seq_along(withinss))
 It is clear that the improvement to within-cluster sum of squares decreases significantly after the number of clusters reaches 3. Thus **k = 3 is chosen to be the optimal number of clusters**.
 
 ## Performance Evaluation
-To evaluate the performance of the selected model, first the optimal number of clusters (3) is compared to the number of different species from the provided classification label:
+Labeled response from iris is used to evaluate the performance of the selected model. To stay in spirit of unsupervised learning all final parameters are fixed prior to evaluation and no changes can be made no matter the outcome.
+
+First the optimal number of clusters (3) is compared to the number of different species from the provided classification label:
 ```{r, echo = TRUE}
 length(unique(iris_data[,5]))
 ```
@@ -83,7 +90,38 @@ In-sample model accuracy is computed with the following code:
 acc <- sum(as.numeric(iris_data[,5]) == cl3$cluster)/nrow(iris_data)
 ```
 
-The clustering model is able to achieve an in-sample accuracy of `r acc`.
+The 3-clustering model is able to achieve an in-sample accuracy of `r acc`.
+
+**Predictor Combinations:**
+
+Here is a bit of bonus evaluations by selecting different predictor combinations and checking model performance. Notice that since the performance is evaluated using the labeled response this cannot be used as part of the model selection process (else it will be supervised learning). It is included here for completeness.
+```{r}
+set.seed(123)
+
+iris_vars <- names(iris_noresp)
+
+var_combo <- permutations(2, 4, v = c(TRUE, FALSE), repeats.allowed = TRUE)[2:16,]
+
+kmeans_accvals <- rep(0, 15)
+
+for (i in 1:15) {
+    model <- kmeans(iris_noresp[,var_combo[i,]], centers = 3, nstart = 5)
+    kmeans_accvals[i] <- sum(as.numeric(iris_data[,5]) == model$cluster)/nrow(iris_data)
+}
+
+kmeans_max_ind <- which.max(kmeans_accvals)
+
+included_vars <- rep('', 15)
+
+for (i in 1:15) {
+    included_vars[i] = paste(iris_vars[var_combo[i,]], collapse = ', ')
+}
+
+kable(data.frame(Accuracy = kmeans_accvals, Selected = included_vars))
+
+```
+
+Judging from the accuracy table, a 3-cluster model for the iris data set performs best with predictors `r included_vars[kmeans_max_ind]`, which gives an in-sample accuracy of `r kmeans_accvals[kmeans_max_ind]`
 
 # Question 3
 **Using crime data from http://www.statsci.org/data/general/uscrime.txt (description at http://www.statsci.org/data/general/uscrime.html), test to see whether there is an outlier in the last column (number of crimes per 100,000 people). Is the lowest-crime city an outlier? Is the highest-crime city an outlier? Use the grubbs.test function in the outliers package in R.**
@@ -139,12 +177,23 @@ max_test
 
 Notice that both G values are less than the critical G value, `r G_crit`, hence **neither crime rates are outliers in this data set**. Also note that it's actually possible to draw the same conclusion using the p-values computed by grubbs.test. Both tests resulted in p-value > alpha = `r alpha`, thus neither points are outliers.
 
+**Digression:**
+
+It should be noted that Grubbs test requires the sample to be drawn from a normal distribution. A qqplot of the crime data is shown below:
+
+```{r}
+qqnorm(crime_data$Crime)
+qqline(crime_data$Crime)
+```
+
+The jump in the far right end suggests a significantly lower than usual density near the right tail. It is possible that the data is not normally distributed (left skewed) and thus Grubbs test should NOT be used in the first place. 
+
 # Question 4
 **Describe a situation or problem from your job, everyday life, current events, etc., for which a Change Detection model would be appropriate. Applying the CUSUM technique, how would you choose the critical value and the threshold?**
 
 **Answer:**
 
-I read about the [Sewol Ferry Disaster](https://en.wikipedia.org/wiki/Sinking_of_MV_Sewol) recently where 304 people died after the ship sank in South Korea. The helmsman performed a tigh right turn at high speed. The incline from the turn went beyond the point of no return and caused the ferry to capsize. 
+I read about the [Sewol Ferry Disaster](https://en.wikipedia.org/wiki/Sinking_of_MV_Sewol) recently where 304 people died after the ship sank in South Korea. The helmsman performed a tight right turn at high speed. The incline from the turn went beyond the point of no return and caused the ferry to capsize. 
 
 Clearly ships under normal operations will still undergo momentary inclines due to rolling caused by waves and maneuvers. The onboard computer should not raise false alarms under these situations. CUSUM is therefore a good choice for the statistics backend for the detection of abnormal incline.
 
@@ -156,7 +205,7 @@ S_t = max\{0, S_{t-1} + (x_t - \mu - C)\}
 (\#eq:cusuminc)
 \end{equation}
 
-and the system triggers warning when $S_t \gt T$.
+and the system triggers warning when $S_t > T$.
 
 In this case,
 
@@ -170,7 +219,7 @@ $T$ = threshold value
 
 Care should be taken in regards to the running average, $\mu$. Since a ship on a calm sea sailing straight should have an equilibrium incline at 0, it may be more reasonable to set $\mu$ to 0. The design engineer can then determine a maximum incline angle that can be encountered during normal operations of the ship and set the critical value C to that. This ensures only persistent incline above maximum normal operation values will be picked up by CUSUM. 
 
-The threshold value, T, should be set based on the sampling rate of the sensor and difference between the point of no return and critical value. The goal is to ensure that there will be enough time for countermeasures to be taken once CUSUM triggers a warning. For example, if the sensor polls at 1 Hz, the point of no return is 20 degrees and C is 10 degrees, a T value set at 5 means the alarm will be raised after 5 seconds if the ship keeps listing at 11 degrees. If the ships list to more than 15 degrees even just momentarily the alarm will be immediately triggered.
+The threshold value, T, should be set based on the sampling rate of the sensor and difference between the point of no return and critical value. The goal is to ensure that there will be enough time for countermeasures to be taken once CUSUM triggers a warning. For example, if the sensor polls at 1 Hz, the point of no return is 20 degrees and C is 10 degrees, a T value set at 5 means the alarm will be raised after 5 seconds if the ship keeps listing at 11 degrees. If the ship lists to more than 15 degrees even just momentarily the alarm will be immediately triggered.
 
 # Question 5
 
@@ -186,33 +235,226 @@ job too.**
 
 **Answer:**
 ```{r, results = 'hide'}
-# Q5.1
+# cusum_L() detects a DECREASING change in x.
+# Arguments:
+# x: numerical vector of the quantity to undergo detection
+# C_fac: critical value factor (integer) to specify detectable shift as 
+# 1/2*n*sigma(x)
+# 
+# T_fac: threshold value factor (integer) to specify mean shift threshold as 
+# T_fac*sigma(x)
+# 
+# n: number of X to be used to compute mean and sd.
+# 
+# mean(x) and sigma(x) is estimated from the first 25 values of x.
+# Algorithm details: https://www.mathworks.com/help/signal/ref/cusum.html
+# 
+# Returns:
+# index of when the first change is detected.
+# 0 otherwise.
+cusum_L <- function(x, C_fac, T_fac = -1, n) {
+    S_t <- 0
+    mu <- mean(x[1:n])
+    
+    sigma <- sd(x[1:n])
+    
+    C <- 1/2*C_fac*sigma
+    
+    if (T_fac < 0) {
+        T <- 1*sigma
+    } else {
+        T <- T_fac*sigma
+    }
+    
+    
+    for (i in 2:length(x)) {
+        
+        S_t <- max(0, S_t + mu - x[i] - C)
+        
+        if (S_t >= T) {
+            return(i)
+        }
+    }
+    return(0)
+}
+
+
+# Carries out TWO 2-level nested grid search to find optimal C and T values.
+# Arguments:
+# data: data frame containing the time stamps and temperature data to be used for 
+# training. First column is time stamps, other columns represent data collected 
+# in that particular year specified by the column name.
+# 
+# answer: data frame containing manually chosen starting dates of decreasing 
+# temperature of the year specified by column names.
+# 
+# C_range: range for C factor in the form c(C_start, C_end)
+# 
+# T_range: range for T factor in the form c(T_start, T_end)
+# 
+# grid_n: number of grid points. Number of intervals is grid_n - 1.
+# 
+# level: search level (search stops at 2)
+cusum_searchL <- function(data, answer, C_range, T_range, grid_n, level = 1) {
+    C_seq <- seq(C_range[1], C_range[2], length.out = grid_n)
+    T_seq <- seq(T_range[1], T_range[2], length.out = grid_n)
+    
+    min_ss <- Inf
+    indices <- rep(0, ncol(data) - 1)
+    C_ind <- 0
+    T_ind <- 0
+    
+    for (c_ind in 1:length(C_seq)) {
+        for (t_ind in 1:length(T_seq)) {
+            curr_ss <- 0
+            temp_indices <- rep(0, length(indices))
+            
+            C <- C_seq[c_ind]
+            T <- T_seq[t_ind]
+            
+            for (i in 2:ncol(data)) {
+                index = cusum_L(data[,i], C, T, 25)
+                
+                if (index > 0) {
+                    # Found cusum index. Compute squares and add to curr_ss
+                    curr_ss <- curr_ss + 
+                        as.numeric(data[index, 1] - answer[1,i-1])^2
+                    
+                    temp_indices[i-1] <- index
+                    
+                } else {
+                    # Failed to find cusum index. Set curr_ss to Inf and break.
+                    curr_ss <- Inf
+                    break
+                }
+            }
+            
+            if (curr_ss < min_ss) {
+                min_ss <- curr_ss
+                indices <- temp_indices
+                C_ind = c_ind
+                T_ind = t_ind
+            }
+        }
+    }
+    
+    if ((C_ind == 0 ) || (T_ind == 0)) {
+        return(NA)
+        
+    } else if (level == 1) {
+        if (C_ind == 1) {
+            C_range <- c(C_seq[C_ind], C_seq[C_ind + 2])
+            
+        } else if (C_ind == length(C_seq)) {
+            C_range <- c(C_seq[C_ind - 2], C_seq[C_ind])
+            
+        } else {
+            C_range <- c(C_seq[C_ind - 1], C_seq[C_ind + 1])
+            
+        }
+        
+        if (T_ind == 1) {
+            T_range <- c(T_seq[T_ind], T_seq[T_ind + 2])
+            
+        } else if (T_ind == length(T_seq)) {
+            T_range <- c(T_seq[T_ind - 2], T_seq[T_ind])
+            
+        } else {
+            T_range <- c(T_seq[T_ind - 1], T_seq[T_ind + 1])
+            
+        }
+        
+        return(cusum_searchL(data, answer, C_range, T_range, grid_n, level+1))
+        
+    } else {
+        ans = list(C_val = C_seq[C_ind], T_val = T_seq[T_ind], ss = min_ss, 
+                   indices = indices)
+        
+        return(ans)
+    }
+    
+    
+}
+
 temps <- read.table('temps.txt', header = TRUE)
 
-datetime <- function(day, year) {
+datetime <- function(day) {
     strtok <- strsplit(as.character(day), '-')
     
     date_num <- strtok[[1]][1]
     mon <- strtok[[1]][2]
     mon_num <- match(mon, month.abb)
-    year_num <- as.numeric(substr(year, 2, 5))
+    #year_num <- as.numeric(substr(year, 2, 5))
     
-    date <- as_date(paste(date_num, mon_num, year_num), '%d %m %Y')
+    #date <- as_date(paste(date_num, mon_num, year_num), '%d %m %Y')
+    
+    date <- as_date(paste(date_num, mon_num), '%d %m')
 
     return(date)
 }
 
-temps_long <- melt(temps)
+# manually choose starting point of decrease
+starts <- data.frame(X1996 = as.Date('2017-08-30'), 
+                     X1997 = as.Date('2017-08-24'), 
+                     X1998 = as.Date('2017-07-03'),
+                     X1999 = as.Date('2017-08-19'),
+                     X2000 = as.Date('2017-08-09'),
+                     X2001 = as.Date('2017-08-13'),
+                     X2002 = as.Date('2017-08-13'),
+                     X2003 = as.Date('2017-08-12'),
+                     X2004 = as.Date('2017-08-14'),
+                     X2005 = as.Date('2017-09-07'),
+                     X2006 = as.Date('2017-08-11'),
+                     X2007 = as.Date('2017-08-18'),
+                     X2008 = as.Date('2017-08-14'),
+                     X2009 = as.Date('2017-08-11'),
+                     X2010 = as.Date('2017-08-12'),
+                     X2011 = as.Date('2017-08-11'),
+                     X2012 = as.Date('2017-07-03'),
+                     X2013 = as.Date('2017-08-21'),
+                     X2014 = as.Date('2017-08-21'),
+                     X2015 = as.Date('2017-08-11'))
 
-datums <- mapply(FUN = datetime, temps_long$DAY, temps_long$variable)
 
-temps_long <- data.frame(datum = as_date(datums), T = temps_long$value)
+temps_data <- temps
+temps_data[,1] = as_date(sapply(temps$DAY, FUN = datetime))
 ```
-The temperature data is reshaped into a long format (one measurement per row) with all the dates and year aggregated and converted into date objects. The code to do this can be found in the [Appendix](#TODO).
+Data is loaded with the DAY variable converted into R datetime objects (with a dummy year coded to the current year because the actual year can be extracted using the column names).
 
-Figure \@ref() shows the temperature vs date of each year as scatter plots. Using the **MkI Eyeballs** it seems that temperature generally starts to drop around early to mid August. 
+Figure \@ref(fig:q51) shows the lowess smoothed trendlines of temperature vs date of the years 1996 to 2000. Using the **MkI Eyeballs** it seems that temperature generally starts to drop around early to mid August. These points are marked by the circles.
 
-Since we are trying to detect a decrease, certain parts of \@ref(eq:cusuminc) has to be flipped, resulting in:
+```{r q51, fig.cap = 'Temperature vs Date from 1996 to 2000. O = manually chosen end points, X = chosen by cusum.'}
+pred <- cusum_searchL(temps_data, starts, c(0,5), c(0.1,20), 100)
+
+cols = rainbow(5, s= 1, start = 0)
+
+line <- lowess(temps_data[,1], temps_data[,2])
+plot(x = as_date(line[[1]]), y = line[[2]], type = 'l', col = cols[1], 
+     xlab = 'Time of Year', ylab = 'Temperature (F)')
+pt_ind <- temps_data$DAY == starts[1,1]
+points(temps_data[pt_ind,1], line[[2]][pt_ind], pch = 'O', col = cols[1])
+#
+points(temps_data[pred$indices[1], 1], line[[2]][pred$indices[1]], pch = 'X', col = cols[1])
+for (i in 2:5) {
+    line <- lowess(temps_data[,1], temps_data[,i+1])
+    lines(line, col = cols[i])
+    pt_ind <- temps_data$DAY == starts[1,i]
+    points(temps_data[pt_ind,1], line[[2]][pt_ind], pch = 'O', col = cols[i])
+    #
+    points(temps_data[pred$indices[i], 1], line[[2]][pred$indices[i]], pch = 'X', col = cols[i])
+}
+
+legend('topright', lty = 1, col = cols, 
+       legend = substr(names(temps_data)[2:(2+4)], 2, 5))
+
+title(main = 'Atlanta Summer Temperature vs Date from 1996 to 2000')
+
+p <- recordPlot()
+
+replayPlot(p)
+```
+
+Since we are trying to detect a decrease, certain parts of equation \@ref(eq:cusuminc) has to be flipped, resulting in:
 
 
 \begin{equation}
@@ -220,32 +462,106 @@ S_t = max\{0, S_{t-1} + (\mu - x_t  + C)\}
 (\#eq:cusumdec)
 \end{equation}
 
+A design choice is made here to follow the strategy of the cusum function in [MATLAB](https://www.mathworks.com/help/signal/ref/cusum.html). The mean, $\mu$, is computed using the first 25 points of the data. C and T are specified as scalar multiples of the sample standard deviation (again computed using the first 25 points) with separate scalar factors. This is done so that a set with lots of noise will have higher tolerance and threshold A 2-nested grid search with 100 grid points is carried out to find the optimal C and T factors using the sum of square distances to the manually chosen points as the performance metric. 
+
+The best performer has a C factor of `r pred$C_val` and T factor of `r pred$T_val`. This seems to suggest that a small filter (in fact, 0) and a relatively high threshold match the manually chosen points better. It should be noted that the C and T factors listed here are scaling factors for the sample standard deviation computed from the first 25 points. While the actual value of C will always be 0 the actual values of T will vary.
+
+The points chosen by CUSUM are plotted in Figure \@ref(fig:q51) with the X marks. A table comparing all the dates chosen by me and CUSUM is shown below:
+
+```{r}
+yrs <- 1996:2015
+cusum_dates <- rep(0, length(yrs))
+my_dates <- rep(0, length(yrs))
+
+for (i in 1:length(yrs)) {
+    cusum_orig <- temps_data[pred$indices[i], 1]
+    my_orig <- starts[,i]
+    
+    cusum_dates[i] <- as_date(paste(day(cusum_orig), month(cusum_orig), yrs[i]), '%d %m %Y')
+    my_dates[i] <- as_date(paste(day(my_orig), month(my_orig), yrs[i]), '%d %m %Y')
+    
+    
+}
+diff <- my_dates - cusum_dates
+
+kable(data.frame(Manual = as_date(my_dates), CUSUM = as_date(cusum_dates), Difference = diff), align = 'l')
+```
+
 **2. Use a CUSUM approach to make a judgment of whether Atlanta’s summer climate has gotten
 warmer in that time (and if so, when).**
 
+```{r}
+# cusum_U() detects a INCREASING change in x.
+# Arguments:
+# x: numerical vector of the quantity to undergo detection
+# C_fac: critical value factor (integer) to specify detectable shift as 
+# 1/2*n*sigma(x)
+# 
+# T_fac: threshold value factor (integer) to specify mean shift threshold as 
+# T_fac*sigma(x)
+# 
+# n: number of X to be used to compute mean and sd.
+# 
+# mean(x) and sigma(x) is estimated from the first 25 values of x.
+# Algorithm details: https://www.mathworks.com/help/signal/ref/cusum.html
+# 
+# Returns:
+# index of when the first change is detected.
+# 0 otherwise.
+cusum_U <- function(x, C_fac, T_fac = -1, n) {
+    S_t <- 0
+    mu <- mean(x[1:n])
 
-# Appendix {#Appdix}
+    sigma <- sd(x[1:n])
 
-## Code for Question 2
-```{r Q2, eval = FALSE, echo = TRUE}
-iris_data <- read.table('iris.txt', header = TRUE)
+    C <- 1/2*C_fac*sigma
 
-iris_noresp <- iris_data[,-5]
-varnames = rep('', 10)
+    if (T_fac < 0) {
+        T <- 1*sigma
+    } else {
+        T <- T_fac*sigma
+    }
 
-for (k in 1:10) {
-  kcl <- kmeans(iris_noresp, centers = k, nstart = 5)
-  varnames[k] <- paste('cl', k, sep = '')
-  assign(varnames[k], value = kcl)
+
+    for (i in 2:length(x)) {
+
+        S_t <- max(0, S_t + x[i] - mu - C)
+
+        if (S_t >= T) {
+            return(i)
+        }
+    }
+    return(0)
 }
-
-withinss <- rep(0, 10)
-
-for (i in 1:10) {
-  withinss[i] = get(varnames[i])$tot.withinss
-}
-
-plot(withinss, xlab = 'Number of Clusters', ylab = 'Within-cluster Sum of Squares')
-axis(side = 1, at = seq_along(withinss))
 ```
 
+```{r aa, fig.show = 'hide'}
+annual_avg <- colMeans(temps_data[,2:21])
+line <- lowess(yrs, annual_avg)
+aa_ind <- cusum_U(annual_avg, 0.5, 1, 5)
+
+C <- 0.5*0.5*sd(annual_avg[1:5])
+T <- 1*sd(annual_avg[1:5])
+
+plot(yrs, annual_avg, xlab = 'Year', ylab = 'Temperature (F)')
+lines(line)
+points(yrs[aa_ind], line[[2]][aa_ind], pch = 'X')
+abline(h = mean(annual_avg[1:5]), col = 'red')
+abline(h = mean(annual_avg[1:5]) + C, col = 'red', lty = 3)
+
+title(main = 'Average Summer Temperature in Atlanta')
+
+legend('topleft', pch = c('o', 'X'), c('Measured Values', 'CUSUM Detection'))
+
+aa <- recordPlot()
+```
+
+Column means of the temperature data is computed and used to study the annual summer temperature trend. A C facor of 0.5 and T factor of 1 is chosen as the upper filter/control limit and threshold value for an increasing CUSUM detection. The first 5 years are used as baseline points to compute the mean and standard deviation. For this particular data set, the upper filter limit is `r C` degrees F and the threshold is `r T` degrees F. The results are shown in Figure \@ref(fig:q52).
+
+```{r q52, fig.cap = 'Average Summer Temperature with Lowess Smoothed Trend. Red solid line is the mu value and red dotted line is the upper filter limit.'}
+
+replayPlot(aa)
+
+```
+
+A CUSUM detection for an increase is found in year `r yrs[aa_ind]`. It should be noted that the trend line does not demonstrate long term increase past the point of detection. Due to the noisy nature of the data a hypothesis test for mean difference between different periods may be useful here.
